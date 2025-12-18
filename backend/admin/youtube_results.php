@@ -213,29 +213,67 @@ if (isset($searchResults['items'])) {
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
 
-        /* --- Modal Specific Styles --- */
+        /* --- Modal Specific Styles (Dark Theme) --- */
         #playlistModal .modal-content {
+            background-color: #2d2d2d;
+            color: #f5f5f5;
             border-radius: 10px;
+            border: 1px solid #444;
+        }
+
+        #playlistModal .modal-header {
+            border-bottom: 1px solid #444;
+        }
+
+        #playlistModal .modal-header .close {
+            color: #f5f5f5;
+            text-shadow: none;
+            opacity: 0.7;
+        }
+
+        #playlistModal .modal-header .close:hover {
+            opacity: 1;
+        }
+
+        #playlistModal .modal-body {
+            padding: 1rem 0.5rem;
         }
 
         #playlistModal .list-group-item {
-            border-left: none;
-            border-right: none;
+            background-color: transparent;
+            border: none;
         }
 
-        #playlistModal .list-group-item:first-child {
-            border-top-left-radius: 0;
-            border-top-right-radius: 0;
+        #playlistModal .list-group-item strong {
+            color: #f5f5f5;
+            font-weight: 500;
+        }
+
+        #playlistModal .list-group-item .text-muted {
+            color: #aaa !important;
+        }
+
+        #playlistModal .list-group-item > div:last-child {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
         }
 
         #playlistModal .btn {
-            border-radius: 20px;
+            border-radius: 15px;
             font-weight: 500;
-            padding: 0.3rem 1rem;
+            padding: 0.2rem 0.8rem;
             border: none;
             transition: all 0.2s ease-in-out;
             letter-spacing: 0.5px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
+            margin-bottom: 5px;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        #playlistModal .list-group-item .btn:last-child {
+            margin-bottom: 0;
         }
 
         #playlistModal .btn-success {
@@ -256,14 +294,14 @@ if (isset($searchResults['items'])) {
         }
 
         #playlistModal .btn-outline-secondary {
-            border: 2px solid #ccc;
-            color: #555;
-            background: white;
+            border: 1px solid #777;
+            color: #f5f5f5;
+            background: transparent;
         }
 
         #playlistModal .btn-outline-secondary:hover {
-            background-color: #f8f9fa;
-            border-color: #aaa;
+            background-color: #444;
+            border-color: #999;
         }
     </style>
 </head>
