@@ -246,14 +246,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($is_creator) {
                 // Creator is leaving
-                if (!empty($room['password'])) {
-                    // Room has a password, deletion is required
-                    $password = $data['password'] ?? '';
-                    if (empty($password)) {
-                        echo json_encode(['success' => false, 'message' => 'Password required to delete the room']);
-                        exit;
-                    }
+                $password = $data['password'] ?? '';
 
+                if (!empty($room['password']) && !empty($password)) {
+                    // Scenario 1: Creator of a password-protected room chooses to DELETE
                     if (password_verify($password, $room['password'])) {
                         // Correct password, delete the room
                         $conn->begin_transaction();
@@ -269,6 +265,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         echo json_encode(['success' => false, 'message' => 'Incorrect password']);
                     }
                 } else {
+                    // Scenario 2: Creator of a non-password room leaves, OR
+                    // Creator of a password-protected room chooses to LEAVE (not delete)
                     // No password, transfer ownership or delete if empty
                     $next_creator_sql = "SELECT user_name FROM room_users WHERE room_id = ? AND user_name != ? AND is_online = 1 ORDER BY joined_at ASC LIMIT 1";
                     $next_creator = db_query_one($next_creator_sql, [$room['id'], $user_name], 'is');

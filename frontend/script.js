@@ -695,42 +695,55 @@ async function leaveRoom() {
 
     if (isCreator) {
         if (currentRoom.has_password) {
-            // Creator with a password-protected room
-            showModal('creator-leave-modal');
-            const confirmBtn = document.getElementById('confirm-leave-room-btn');
-            confirmBtn.onclick = async () => {
-                const password = document.getElementById('leave-room-password').value;
-                if (!password) {
-                    showError('Password is required to delete the room');
-                    return;
-                }
+            // Creator of a password-protected room gets a choice
+            if (confirm("You are the creator of a password-protected room. Do you want to permanently DELETE the room?\n\nOK - Delete Room (password required)\nCancel - Leave Room (ownership will be transferred)")) {
+                // User chose to DELETE
+                showModal('creator-leave-modal');
+                const confirmBtn = document.getElementById('confirm-leave-room-btn');
+                document.getElementById('leave-room-password').value = ''; // Clear password field
 
-                try {
-                    const response = await fetch(`${API_BASE_URL}/rooms/update.php`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            room_code: currentRoom.room_code,
-                            user_name: currentUser.name,
-                            action: 'leave',
-                            password: password
-                        })
-                    });
-                    const result = await response.json();
+                // Use a one-time event listener to avoid stacking them
+                const newConfirmBtn = confirmBtn.cloneNode(true);
+                confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
 
-                    if (result.success) {
-                        showNotification('Room successfully deleted.', 'success');
-                        resetApp();
-                    } else {
-                        showError(result.message || 'Failed to delete room');
+                newConfirmBtn.addEventListener('click', async () => {
+                    const password = document.getElementById('leave-room-password').value;
+                    if (!password) {
+                        showError('Password is required to delete the room');
+                        return;
                     }
-                } catch (error) {
-                    console.error('Error deleting room:', error);
-                    showError('Network error. Please try again.');
-                } finally {
-                    closeModal('creator-leave-modal');
-                }
-            };
+
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/rooms/update.php`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                room_code: currentRoom.room_code,
+                                user_name: currentUser.name,
+                                action: 'leave',
+                                password: password
+                            })
+                        });
+                        const result = await response.json();
+
+                        if (result.success) {
+                            showNotification('Room successfully deleted.', 'success');
+                            resetApp();
+                        } else {
+                            showError(result.message || 'Failed to delete room');
+                        }
+                    } catch (error) {
+                        console.error('Error deleting room:', error);
+                        showError('Network error. Please try again.');
+                    } finally {
+                        closeModal('creator-leave-modal');
+                    }
+                });
+
+            } else {
+                // User chose to just LEAVE (transfer ownership)
+                performLeave(false);
+            }
         } else {
             // Creator without a password-protected room
             if (confirm('You are the creator. Leaving will transfer ownership to the next user. Are you sure?')) {
