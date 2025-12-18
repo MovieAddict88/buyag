@@ -436,6 +436,7 @@ async function syncRoomStatus() {
 function updateRoomUI(data) {
     // Update room object with current song
     if (data.room) {
+        currentRoom.has_password = data.room.has_password;
         currentRoom.current_song_id = data.room.current_song_id;
         currentRoom.current_song_title = data.room.current_song_title;
         currentRoom.current_song_artist = data.room.current_song_artist;
@@ -685,36 +686,97 @@ async function rejoinRoom(session) {
 
 async function leaveRoom() {
     if (!currentRoom || !currentUser) {
-        // If not in a room, just ensure the UI is in the correct state.
         karaokeContainer.style.display = 'none';
         welcomeScreen.style.display = 'block';
         return;
     }
 
-    if (confirm('Are you sure you want to leave the room and return to home?')) {
-        try {
-            await fetch(`${API_BASE_URL}/rooms/update.php`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    room_code: currentRoom.room_code,
-                    user_name: currentUser.name,
-                    action: 'leave'
-                })
-            });
-        } catch (error) {
-            console.error('Error leaving room:', error);
-            // We still want to leave the room on the frontend even if the backend fails
-        } finally {
-            stopRoomSync();
-            currentRoom = null;
-            currentUser = null;
-            clearSession();
-            showNotification('You have left the room.', 'info');
-            karaokeContainer.style.display = 'none';
-            welcomeScreen.style.display = 'block';
+    const isCreator = currentUser.name === currentRoom.creator_name;
+
+    if (isCreator) {
+        if (currentRoom.has_password) {
+            // Creator with a password-protected room
+            showModal('creator-leave-modal');
+            const confirmBtn = document.getElementById('confirm-leave-room-btn');
+            confirmBtn.onclick = async () => {
+                const password = document.getElementById('leave-room-password').value;
+                if (!password) {
+                    showError('Password is required to delete the room');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/rooms/update.php`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            room_code: currentRoom.room_code,
+                            user_name: currentUser.name,
+                            action: 'leave',
+                            password: password
+                        })
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        showNotification('Room successfully deleted.', 'success');
+                        resetApp();
+                    } else {
+                        showError(result.message || 'Failed to delete room');
+                    }
+                } catch (error) {
+                    console.error('Error deleting room:', error);
+                    showError('Network error. Please try again.');
+                } finally {
+                    closeModal('creator-leave-modal');
+                }
+            };
+        } else {
+            // Creator without a password-protected room
+            if (confirm('You are the creator. Leaving will transfer ownership to the next user. Are you sure?')) {
+                performLeave(false);
+            }
+        }
+    } else {
+        // Non-creator leaving
+        if (confirm('Are you sure you want to leave the room?')) {
+            performLeave(false);
         }
     }
+}
+
+async function performLeave(isDeletion) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/rooms/update.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                room_code: currentRoom.room_code,
+                user_name: currentUser.name,
+                action: 'leave'
+            })
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+            showError(result.message || 'Failed to leave room on backend');
+        }
+    } catch (error) {
+        console.error('Error leaving room:', error);
+        // Continue to leave on the frontend
+    } finally {
+        resetApp();
+        showNotification(isDeletion ? 'Room deleted.' : 'You have left the room.', 'info');
+    }
+}
+
+function resetApp() {
+    stopRoomSync();
+    currentRoom = null;
+    currentUser = null;
+    clearSession();
+    karaokeContainer.style.display = 'none';
+    welcomeScreen.style.display = 'block';
 }
 
 // ==================== SONG QUEUE FUNCTIONS ====================
