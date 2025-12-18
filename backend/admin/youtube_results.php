@@ -113,7 +113,12 @@ if (isset($searchResults['items'])) {
     <title>YouTube Search: "<?php echo htmlspecialchars($query); ?>"</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
-        body { padding: 20px; }
+        /* Custom styles for YouTube search results page */
+        body {
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
         .result-card {
             border: 1px solid #ddd;
             border-radius: 8px;
@@ -142,13 +147,123 @@ if (isset($searchResults['items'])) {
             padding: 3px 8px;
             margin-right: 8px;
         }
-        .btn-playlist {
-            background-color: #28a745;
-            border-color: #28a745;
+        /* --- Enhanced Action Button Styles --- */
+        .result-card .d-flex > div:last-child {
+            display: flex;
+            align-items: center;
         }
-        .btn-playlist:hover {
-            background-color: #218838;
-            border-color: #1e7e34;
+
+        .result-card .btn {
+            border-radius: 50px; /* Pill-shaped buttons */
+            font-weight: 600;
+            padding: 0.5rem 1.2rem;
+            border: none;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+
+        .result-card .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .result-card .btn:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(38, 166, 154, 0.4);
+        }
+
+        .result-card .btn:active {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 5px rgba(0,0,0,0.1);
+        }
+
+        .btn-success.add-song-btn {
+            background: linear-gradient(45deg, #1DB954, #1ED760);
+            color: white;
+        }
+
+        .btn.add-song-btn[disabled] {
+            background: #a5a5a5;
+            color: #f0f0f0;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-playlist {
+            background: linear-gradient(45deg, #5f27cd, #8e44ad);
+            color: white;
+        }
+
+        .result-card .btn-outline-secondary {
+            background-color: #fff;
+            border: 2px solid #ccc;
+            color: #555;
+            box-shadow: none;
+        }
+
+        .result-card .btn-outline-secondary:hover {
+            background-color: #f8f9fa;
+            border-color: #aaa;
+            color: #333;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        /* --- Modal Specific Styles --- */
+        #playlistModal .modal-content {
+            border-radius: 10px;
+        }
+
+        #playlistModal .list-group-item {
+            border-left: none;
+            border-right: none;
+        }
+
+        #playlistModal .list-group-item:first-child {
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+        }
+
+        #playlistModal .btn {
+            border-radius: 20px;
+            font-weight: 500;
+            padding: 0.3rem 1rem;
+            border: none;
+            transition: all 0.2s ease-in-out;
+            letter-spacing: 0.5px;
+            font-size: 0.75rem;
+        }
+
+        #playlistModal .btn-success {
+             background: linear-gradient(45deg, #1DB954, #1ED760);
+             color: white;
+        }
+
+        #playlistModal .btn-success:hover {
+            opacity: 0.9;
+        }
+
+        #playlistModal .btn[disabled] {
+            background: #a5a5a5;
+            color: #f0f0f0;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #playlistModal .btn-outline-secondary {
+            border: 2px solid #ccc;
+            color: #555;
+            background: white;
+        }
+
+        #playlistModal .btn-outline-secondary:hover {
+            background-color: #f8f9fa;
+            border-color: #aaa;
         }
     </style>
 </head>
