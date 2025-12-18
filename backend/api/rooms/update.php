@@ -241,80 +241,100 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->close();
             break;
             
-		case 'leave':
-            $is_creator = ($user_name === $room['creator_name']);
+        case 'delete_room':
+            // Only the creator can delete the room
+            if ($user_name !== $room['creator_name']) {
+                echo json_encode(['success' => false, 'message' => 'Only the room creator can delete the room']);
+                exit;
+            }
 
-            if ($is_creator) {
-                // Creator is leaving
-                if (!empty($room['password'])) {
-                    // Room has a password, deletion is required
-                    $password = $data['password'] ?? '';
-                    if (empty($password)) {
-                        echo json_encode(['success' => false, 'message' => 'Password required to delete the room']);
-                        exit;
-                    }
+            // Password is required for deletion
+            if (empty($room['password'])) {
+                echo json_encode(['success' => false, 'message' => 'This room is not password-protected and cannot be deleted this way']);
+                exit;
+            }
 
-                    if (password_verify($password, $room['password'])) {
-                        // Correct password, delete the room
-                        $conn->begin_transaction();
-                        try {
-                            delete_room_data($conn, $room['id']);
-                            $conn->commit();
-                            echo json_encode(['success' => true, 'message' => 'Room deleted successfully']);
-                        } catch (Exception $e) {
-                            $conn->rollback();
-                            echo json_encode(['success' => false, 'message' => 'Failed to delete room']);
-                        }
-                    } else {
-                        echo json_encode(['success' => false, 'message' => 'Incorrect password']);
-                    }
-                } else {
-                    // No password, transfer ownership or delete if empty
-                    $next_creator_sql = "SELECT user_name FROM room_users WHERE room_id = ? AND user_name != ? AND is_online = 1 ORDER BY joined_at ASC LIMIT 1";
-                    $next_creator = db_query_one($next_creator_sql, [$room['id'], $user_name], 'is');
+            $password = $data['password'] ?? '';
+            if (empty($password)) {
+                echo json_encode(['success' => false, 'message' => 'Password required to delete the room']);
+                exit;
+            }
 
-                    if ($next_creator) {
-                        // Transfer ownership
-                        $update_room_sql = "UPDATE rooms SET creator_name = ? WHERE id = ?";
-                        $stmt = $conn->prepare($update_room_sql);
-                        $stmt->bind_param("si", $next_creator['user_name'], $room['id']);
-                        $stmt->execute();
-                        $stmt->close();
-
-                        // Mark old creator as offline
-                        $leave_sql = "UPDATE room_users SET is_online = 0 WHERE room_id = ? AND user_name = ?";
-                        $stmt = $conn->prepare($leave_sql);
-                        $stmt->bind_param("is", $room['id'], $user_name);
-                        $stmt->execute();
-                        $stmt->close();
-
-                        echo json_encode(['success' => true, 'message' => 'Creator left, ownership transferred']);
-                    } else {
-                        // No other users, delete the room
-                        $conn->begin_transaction();
-                        try {
-                            delete_room_data($conn, $room['id']);
-                            $conn->commit();
-                            echo json_encode(['success' => true, 'message' => 'Room deleted as it was empty']);
-                        } catch (Exception $e) {
-                            $conn->rollback();
-                            echo json_encode(['success' => false, 'message' => 'Failed to delete empty room']);
-                        }
-                    }
+            if (password_verify($password, $room['password'])) {
+                $conn->begin_transaction();
+                try {
+                    delete_room_data($conn, $room['id']);
+                    $conn->commit();
+                    echo json_encode(['success' => true, 'message' => 'Room deleted successfully']);
+                } catch (Exception $e) {
+                    $conn->rollback();
+                    echo json_encode(['success' => false, 'message' => 'Failed to delete room']);
                 }
             } else {
-                // Non-creator is leaving
+                echo json_encode(['success' => false, 'message' => 'Incorrect password']);
+            }
+            break;
+
+        case 'transfer_ownership':
+            // Only the creator can transfer ownership
+            if ($user_name !== $room['creator_name']) {
+                echo json_encode(['success' => false, 'message' => 'Only the room creator can transfer ownership']);
+                exit;
+            }
+
+            // Find the next online user to transfer ownership to
+            $next_creator_sql = "SELECT user_name FROM room_users WHERE room_id = ? AND user_name != ? AND is_online = 1 ORDER BY joined_at ASC LIMIT 1";
+            $next_creator = db_query_one($next_creator_sql, [$room['id'], $user_name], 'is');
+
+            if ($next_creator) {
+                // Transfer ownership
+                $update_room_sql = "UPDATE rooms SET creator_name = ? WHERE id = ?";
+                $stmt = $conn->prepare($update_room_sql);
+                $stmt->bind_param("si", $next_creator['user_name'], $room['id']);
+                $stmt->execute();
+                $stmt->close();
+
+                // Mark old creator as offline
                 $leave_sql = "UPDATE room_users SET is_online = 0 WHERE room_id = ? AND user_name = ?";
                 $stmt = $conn->prepare($leave_sql);
                 $stmt->bind_param("is", $room['id'], $user_name);
-
-                if ($stmt->execute()) {
-                    echo json_encode(['success' => true, 'message' => 'User left room']);
-                } else {
-                    echo json_encode(['success' => false, 'message' => 'Failed to leave room']);
-                }
+                $stmt->execute();
                 $stmt->close();
+
+                echo json_encode(['success' => true, 'message' => 'Creator left, ownership transferred']);
+            } else {
+                // No other users, so we delete the room
+                $conn->begin_transaction();
+                try {
+                    delete_room_data($conn, $room['id']);
+                    $conn->commit();
+                    echo json_encode(['success' => true, 'message' => 'Room deleted as it was empty']);
+                } catch (Exception $e) {
+                    $conn->rollback();
+                    echo json_encode(['success' => false, 'message' => 'Failed to delete empty room']);
+                }
             }
+            break;
+
+        case 'leave_room':
+            // Any user (who is not the creator of a password-protected room) can leave
+            $is_creator = ($user_name === $room['creator_name']);
+            if ($is_creator && !empty($room['password'])) {
+                echo json_encode(['success' => false, 'message' => 'Creator of a password-protected room must delete it']);
+                exit;
+            }
+
+            // Mark user as offline
+            $leave_sql = "UPDATE room_users SET is_online = 0 WHERE room_id = ? AND user_name = ?";
+            $stmt = $conn->prepare($leave_sql);
+            $stmt->bind_param("is", $room['id'], $user_name);
+
+            if ($stmt->execute()) {
+                echo json_encode(['success' => true, 'message' => 'User left room']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to leave room']);
+            }
+            $stmt->close();
             break;
             
         default:

@@ -218,7 +218,8 @@ async function createRoom() {
                 room_id: result.room_id,
                 room_name: roomName,
                 creator_name: creatorName,
-                is_creator: true
+                is_creator: true,
+                has_password: password.length > 0
             };
             
             currentUser = {
@@ -712,14 +713,14 @@ async function leaveRoom() {
                         body: JSON.stringify({
                             room_code: currentRoom.room_code,
                             user_name: currentUser.name,
-                            action: 'leave',
+                            action: 'delete_room',
                             password: password
                         })
                     });
                     const result = await response.json();
 
                     if (result.success) {
-                        showNotification('Room successfully deleted.', 'success');
+                        showNotification(result.message || 'Room successfully deleted.', 'success');
                         resetApp();
                     } else {
                         showError(result.message || 'Failed to delete room');
@@ -734,7 +735,7 @@ async function leaveRoom() {
         } else {
             // Creator without a password-protected room
             if (confirm('You are the creator. Leaving will transfer ownership to the next user. Are you sure?')) {
-                performLeave(false);
+                performLeave(true);
             }
         }
     } else {
@@ -745,7 +746,8 @@ async function leaveRoom() {
     }
 }
 
-async function performLeave(isDeletion) {
+async function performLeave(isCreator) {
+    const action = isCreator ? 'transfer_ownership' : 'leave_room';
     try {
         const response = await fetch(`${API_BASE_URL}/rooms/update.php`, {
             method: 'POST',
@@ -753,20 +755,23 @@ async function performLeave(isDeletion) {
             body: JSON.stringify({
                 room_code: currentRoom.room_code,
                 user_name: currentUser.name,
-                action: 'leave'
+                action: action
             })
         });
 
         const result = await response.json();
-        if (!result.success) {
+        if (result.success) {
+            resetApp();
+            const message = isCreator
+                ? 'You have left the room, ownership has been transferred.'
+                : 'You have left the room.';
+            showNotification(message, 'info');
+        } else {
             showError(result.message || 'Failed to leave room on backend');
         }
     } catch (error) {
         console.error('Error leaving room:', error);
-        // Continue to leave on the frontend
-    } finally {
-        resetApp();
-        showNotification(isDeletion ? 'Room deleted.' : 'You have left the room.', 'info');
+        showError('A network error occurred. Please try again.');
     }
 }
 
