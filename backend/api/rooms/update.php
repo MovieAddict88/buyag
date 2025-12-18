@@ -242,67 +242,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             break;
             
 		case 'leave':
-            $is_creator = ($user_name === $room['creator_name']);
+			$is_creator = ($user_name === $room['creator_name']);
 
-            if ($is_creator) {
-                // Creator is leaving
-                if (!empty($room['password'])) {
-                    // Room has a password, deletion is required
-                    $password = $data['password'] ?? '';
-                    if (empty($password)) {
-                        echo json_encode(['success' => false, 'message' => 'Password required to delete the room']);
-                        exit;
-                    }
+			if ($is_creator) {
+				// Creator is leaving, transfer ownership or delete if empty
+				$next_creator_sql = "SELECT user_name FROM room_users WHERE room_id = ? AND user_name != ? AND is_online = 1 ORDER BY joined_at ASC LIMIT 1";
+				$next_creator = db_query_one($next_creator_sql, [$room['id'], $user_name], 'is');
 
-                    if (password_verify($password, $room['password'])) {
-                        // Correct password, delete the room
-                        $conn->begin_transaction();
-                        try {
-                            delete_room_data($conn, $room['id']);
-                            $conn->commit();
-                            echo json_encode(['success' => true, 'message' => 'Room deleted successfully']);
-                        } catch (Exception $e) {
-                            $conn->rollback();
-                            echo json_encode(['success' => false, 'message' => 'Failed to delete room']);
-                        }
-                    } else {
-                        echo json_encode(['success' => false, 'message' => 'Incorrect password']);
-                    }
-                } else {
-                    // No password, transfer ownership or delete if empty
-                    $next_creator_sql = "SELECT user_name FROM room_users WHERE room_id = ? AND user_name != ? AND is_online = 1 ORDER BY joined_at ASC LIMIT 1";
-                    $next_creator = db_query_one($next_creator_sql, [$room['id'], $user_name], 'is');
+				if ($next_creator) {
+					// Transfer ownership
+					$update_room_sql = "UPDATE rooms SET creator_name = ? WHERE id = ?";
+					$stmt = $conn->prepare($update_room_sql);
+					$stmt->bind_param("si", $next_creator['user_name'], $room['id']);
+					$stmt->execute();
+					$stmt->close();
 
-                    if ($next_creator) {
-                        // Transfer ownership
-                        $update_room_sql = "UPDATE rooms SET creator_name = ? WHERE id = ?";
-                        $stmt = $conn->prepare($update_room_sql);
-                        $stmt->bind_param("si", $next_creator['user_name'], $room['id']);
-                        $stmt->execute();
-                        $stmt->close();
+					// Mark old creator as offline
+					$leave_sql = "UPDATE room_users SET is_online = 0 WHERE room_id = ? AND user_name = ?";
+					$stmt = $conn->prepare($leave_sql);
+					$stmt->bind_param("is", $room['id'], $user_name);
+					$stmt->execute();
+					$stmt->close();
 
-                        // Mark old creator as offline
-                        $leave_sql = "UPDATE room_users SET is_online = 0 WHERE room_id = ? AND user_name = ?";
-                        $stmt = $conn->prepare($leave_sql);
-                        $stmt->bind_param("is", $room['id'], $user_name);
-                        $stmt->execute();
-                        $stmt->close();
-
-                        echo json_encode(['success' => true, 'message' => 'Creator left, ownership transferred']);
-                    } else {
-                        // No other users, delete the room
-                        $conn->begin_transaction();
-                        try {
-                            delete_room_data($conn, $room['id']);
-                            $conn->commit();
-                            echo json_encode(['success' => true, 'message' => 'Room deleted as it was empty']);
-                        } catch (Exception $e) {
-                            $conn->rollback();
-                            echo json_encode(['success' => false, 'message' => 'Failed to delete empty room']);
-                        }
-                    }
-                }
-            } else {
+					echo json_encode(['success' => true, 'message' => 'Creator left, ownership transferred']);
+				} else {
+					// No other users, delete the room
+					$conn->begin_transaction();
+					try {
+						delete_room_data($conn, $room['id']);
+						$conn->commit();
+						echo json_encode(['success' => true, 'message' => 'Room deleted as it was empty']);
+					} catch (Exception $e) {
+						$conn->rollback();
+						echo json_encode(['success' => false, 'message' => 'Failed to delete empty room']);
+					}
+				}
+			} else {
                 // Non-creator is leaving
                 $leave_sql = "UPDATE room_users SET is_online = 0 WHERE room_id = ? AND user_name = ?";
                 $stmt = $conn->prepare($leave_sql);
