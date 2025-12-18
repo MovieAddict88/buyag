@@ -413,7 +413,19 @@ if (isset($searchResults['items'])) {
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
     <script>
-    // Add individual song
+    const existingVideoIds = new Set(<?php echo json_encode($existing_video_ids); ?>);
+
+    function updateVideoButtonState(videoId) {
+        const button = document.querySelector(`.add-song-btn[data-video-id="${videoId}"]`);
+        if (button) {
+            button.disabled = true;
+            button.textContent = 'Added';
+            button.classList.remove('btn-success');
+            button.classList.add('btn-secondary');
+        }
+        existingVideoIds.add(videoId);
+    }
+
     document.querySelectorAll('.add-song-btn').forEach(button => {
         button.addEventListener('click', function() {
             const videoId = this.dataset.videoId;
@@ -423,23 +435,13 @@ if (isset($searchResults['items'])) {
             this.disabled = true;
             this.textContent = 'Adding...';
 
-            const formData = new FormData();
-            formData.append('title', title);
-            formData.append('artist', artist);
-            formData.append('video_link', `https://www.youtube.com/watch?v=${videoId}`);
-
-            fetch('add_song_api.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
+            $.post('add_song_api.php', {
+                title: title,
+                artist: artist,
+                video_link: `https://www.youtube.com/watch?v=${videoId}`
+            }, (data) => {
                 if (data.success) {
-                    this.textContent = 'Added!';
-                    this.classList.remove('btn-success');
-                    this.classList.add('btn-secondary');
-
-                    // Refresh the opener window if it's the dashboard
+                    updateVideoButtonState(videoId);
                     if (window.opener && !window.opener.closed) {
                         window.opener.location.reload();
                     }
@@ -448,9 +450,7 @@ if (isset($searchResults['items'])) {
                     this.textContent = 'Add Song';
                     alert('Error: ' + (data.message || 'Could not add song.'));
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
+            }).fail(() => {
                 this.disabled = false;
                 this.textContent = 'Add Song';
                 alert('An error occurred.');
@@ -458,7 +458,31 @@ if (isset($searchResults['items'])) {
         });
     });
 
-    // View playlist contents
+    function getSongItemHtml(song) {
+        const isAdded = existingVideoIds.has(song.videoId);
+        return `
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${song.title}</strong><br>
+                    <small class="text-muted">${song.channel}</small>
+                </div>
+                <div>
+                    <button class="btn btn-sm ${isAdded ? 'btn-secondary' : 'btn-success'} add-from-playlist"
+                            data-video-id="${song.videoId}"
+                            data-title="${song.title}"
+                            data-artist="${song.channel}"
+                            ${isAdded ? 'disabled' : ''}>
+                        ${isAdded ? 'Added' : 'Add'}
+                    </button>
+                    <a href="https://www.youtube.com/watch?v=${song.videoId}"
+                       target="_blank"
+                       class="btn btn-sm btn-outline-secondary">
+                        Preview
+                    </a>
+                </div>
+            </div>`;
+    }
+
     document.querySelectorAll('.view-playlist-btn').forEach(button => {
         button.addEventListener('click', function() {
             const playlistId = this.dataset.playlistId;
@@ -468,37 +492,13 @@ if (isset($searchResults['items'])) {
             $('#playlistModalBody').html('<div class="text-center"><div class="spinner-border" role="status"></div><p>Loading songs...</p></div>');
             $('#playlistModal').modal('show');
             
-            // Load playlist items via AJAX
-            $.get('get_playlist_items.php', {
-                playlist_id: playlistId
-            }, function(response) {
+            $.get('get_playlist_items.php', { playlist_id: playlistId }, function(response) {
                 if (response.success) {
                     let html = '';
                     if (response.songs.length > 0) {
                         html += '<div class="list-group">';
-                        response.songs.forEach(function(song) {
-                            html += `
-                                <div class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <strong>${song.title}</strong><br>
-                                        <small class="text-muted">${song.channel}</small>
-                                    </div>
-                                    <div>
-                                        <button class="btn btn-sm ${song.is_added ? 'btn-secondary' : 'btn-success'} add-from-playlist"
-                                                data-video-id="${song.videoId}"
-                                                data-title="${song.title}"
-                                                data-artist="${song.channel}"
-                                                ${song.is_added ? 'disabled' : ''}>
-                                            ${song.is_added ? 'Added' : 'Add'}
-                                        </button>
-                                        <a href="https://www.youtube.com/watch?v=${song.videoId}" 
-                                           target="_blank" 
-                                           class="btn btn-sm btn-outline-secondary">
-                                            Preview
-                                        </a>
-                                    </div>
-                                </div>
-                            `;
+                        response.songs.forEach(song => {
+                            html += getSongItemHtml(song);
                         });
                         html += '</div>';
                         if (response.hasMore) {
@@ -519,7 +519,6 @@ if (isset($searchResults['items'])) {
         });
     });
 
-    // Add songs from playlist modal
     $(document).on('click', '.add-from-playlist', function() {
         const button = $(this);
         const videoId = button.data('video-id');
@@ -534,10 +533,8 @@ if (isset($searchResults['items'])) {
             video_link: `https://www.youtube.com/watch?v=${videoId}`
         }, function(response) {
             if (response.success) {
-                button.text('Added!')
-                     .removeClass('btn-success')
-                     .addClass('btn-secondary');
-
+                button.text('Added!').removeClass('btn-success').addClass('btn-secondary');
+                updateVideoButtonState(videoId);
                 if (window.opener && !window.opener.closed) {
                     window.opener.location.reload();
                 }
@@ -548,7 +545,6 @@ if (isset($searchResults['items'])) {
         });
     });
 
-    // Handle "Load More" for playlist items
     $(document).on('click', '#loadMorePlaylist', function() {
         const button = $(this);
         const playlistId = button.data('playlist-id');
@@ -563,6 +559,8 @@ if (isset($searchResults['items'])) {
             if (response.success && response.songs.length > 0) {
                 let newSongsHtml = '';
                 response.songs.forEach(function(song) {
+                    // Use the is_added flag from the API response
+                    const isAdded = song.is_added || existingVideoIds.has(song.videoId);
                     newSongsHtml += `
                         <div class="list-group-item d-flex justify-content-between align-items-center">
                             <div>
@@ -570,11 +568,12 @@ if (isset($searchResults['items'])) {
                                 <small class="text-muted">${song.channel}</small>
                             </div>
                             <div>
-                                <button class="btn btn-sm btn-success add-from-playlist"
+                                <button class="btn btn-sm ${isAdded ? 'btn-secondary' : 'btn-success'} add-from-playlist"
                                         data-video-id="${song.videoId}"
                                         data-title="${song.title}"
-                                        data-artist="${song.channel}">
-                                    Add
+                                        data-artist="${song.channel}"
+                                        ${isAdded ? 'disabled' : ''}>
+                                    ${isAdded ? 'Added' : 'Add'}
                                 </button>
                                 <a href="https://www.youtube.com/watch?v=${song.videoId}"
                                    target="_blank"
@@ -582,15 +581,12 @@ if (isset($searchResults['items'])) {
                                     Preview
                                 </a>
                             </div>
-                        </div>
-                    `;
+                        </div>`;
                 });
 
-                // Append new songs and remove the old button's container
                 $('#playlistModalBody .list-group').append(newSongsHtml);
                 button.parent().remove(); 
 
-                // Add new "Load More" button if there are more pages
                 if (response.hasMore) {
                     const newButtonHtml = `<div class="mt-3 text-center">
                         <button class="btn btn-primary" id="loadMorePlaylist" data-playlist-id="${playlistId}" data-page-token="${response.nextPageToken}">
@@ -600,7 +596,6 @@ if (isset($searchResults['items'])) {
                     $('#playlistModalBody').append(newButtonHtml);
                 }
             } else {
-                // Handle no more songs or an error
                 button.parent().html('<p class="text-muted text-center">No more songs found.</p>');
             }
         }).fail(function() {
