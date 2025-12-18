@@ -177,12 +177,7 @@ function closeModal(modalId) {
 }
 
 function backToWelcome() {
-    if (confirm('Are you sure you want to leave the room and return to home?')) {
-        leaveRoom();
-        karaokeContainer.style.display = 'none';
-        welcomeScreen.style.display = 'block';
-        stopRoomSync();
-    }
+    leaveRoom();
 }
 
 // ==================== ROOM MANAGEMENT FUNCTIONS ====================
@@ -689,26 +684,36 @@ async function rejoinRoom(session) {
 
 
 async function leaveRoom() {
-    if (!currentRoom || !currentUser) return;
-    
-    try {
-        await fetch(`${API_BASE_URL}/rooms/update.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                room_code: currentRoom.room_code,
-                user_name: currentUser.name,
-                action: 'leave'
-            })
-        });
-        
-        stopRoomSync();
-        currentRoom = null;
-        currentUser = null;
-        clearSession();
-        showNotification('Left the room', 'info');
-    } catch (error) {
-        console.error('Error leaving room:', error);
+    if (!currentRoom || !currentUser) {
+        // If not in a room, just ensure the UI is in the correct state.
+        karaokeContainer.style.display = 'none';
+        welcomeScreen.style.display = 'block';
+        return;
+    }
+
+    if (confirm('Are you sure you want to leave the room and return to home?')) {
+        try {
+            await fetch(`${API_BASE_URL}/rooms/update.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    room_code: currentRoom.room_code,
+                    user_name: currentUser.name,
+                    action: 'leave'
+                })
+            });
+        } catch (error) {
+            console.error('Error leaving room:', error);
+            // We still want to leave the room on the frontend even if the backend fails
+        } finally {
+            stopRoomSync();
+            currentRoom = null;
+            currentUser = null;
+            clearSession();
+            showNotification('You have left the room.', 'info');
+            karaokeContainer.style.display = 'none';
+            welcomeScreen.style.display = 'block';
+        }
     }
 }
 
