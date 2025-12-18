@@ -455,6 +455,33 @@
         </div>
     </div>
 
+    <!-- Creator Leave Room Modal -->
+    <div id="creator-leave-modal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2><i class="fas fa-sign-out-alt"></i> Leave and Delete Room</h2>
+                <button class="modal-close" onclick="closeModal('creator-leave-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>You are the creator of this room. To delete it, please enter the room password.</p>
+                <div class="form-group">
+                    <label for="leave-room-password"><i class="fas fa-lock"></i> Room Password</label>
+                    <input type="password" id="leave-room-password" placeholder="Enter room password" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('creator-leave-modal')">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn-danger" id="confirm-leave-room-btn">
+                        <i class="fas fa-trash"></i> Leave and Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Video.js and YouTube plugin -->
     <script src="https://vjs.zencdn.net/8.0.4/video.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@videojs/http-streaming@3.0.2/dist/videojs-http-streaming.min.js"></script>

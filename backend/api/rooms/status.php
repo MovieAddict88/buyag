@@ -26,6 +26,10 @@ if (!$room) {
     exit;
 }
 
+// Add has_password field and remove the hash from the response
+$room['has_password'] = !empty($room['password']);
+unset($room['password']);
+
 // Get online users
 $users_sql = "SELECT user_name, device_type, joined_at 
               FROM room_users 
