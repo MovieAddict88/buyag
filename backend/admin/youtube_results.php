@@ -410,6 +410,9 @@ if (isset($searchResults['items'])) {
             if (response.success && response.songs.length > 0) {
                 let newSongsHtml = '';
                 response.songs.forEach(function(song) {
+                    const buttonClass = song.is_added ? 'btn-secondary' : 'btn-success';
+                    const buttonText = song.is_added ? 'Added' : 'Add';
+                    const buttonDisabled = song.is_added ? 'disabled' : '';
                     newSongsHtml += `
                         <div class="list-group-item d-flex justify-content-between align-items-center">
                             <div>
@@ -417,11 +420,12 @@ if (isset($searchResults['items'])) {
                                 <small class="text-muted">${song.channel}</small>
                             </div>
                             <div>
-                                <button class="btn btn-sm btn-success add-from-playlist"
+                                <button class="btn btn-sm ${buttonClass} add-from-playlist"
                                         data-video-id="${song.videoId}"
                                         data-title="${song.title}"
-                                        data-artist="${song.channel}">
-                                    Add
+                                        data-artist="${song.channel}"
+                                        ${buttonDisabled}>
+                                    ${buttonText}
                                 </button>
                                 <a href="https://www.youtube.com/watch?v=${song.videoId}"
                                    target="_blank"
