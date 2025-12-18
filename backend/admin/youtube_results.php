@@ -410,9 +410,28 @@ if (isset($searchResults['items'])) {
             if (response.success && response.songs.length > 0) {
                 let newSongsHtml = '';
                 response.songs.forEach(function(song) {
-                    const buttonClass = song.is_added ? 'btn-secondary' : 'btn-success';
-                    const buttonText = song.is_added ? 'Added' : 'Add';
-                    const buttonDisabled = song.is_added ? 'disabled' : '';
+                    let buttonHtml;
+                    if (song.is_added) {
+                        buttonHtml = `
+                            <button class="btn btn-sm btn-secondary add-from-playlist"
+                                    data-video-id="${song.videoId}"
+                                    data-title="${song.title}"
+                                    data-artist="${song.channel}"
+                                    disabled>
+                                Added
+                            </button>
+                        `;
+                    } else {
+                        buttonHtml = `
+                            <button class="btn btn-sm btn-success add-from-playlist"
+                                    data-video-id="${song.videoId}"
+                                    data-title="${song.title}"
+                                    data-artist="${song.channel}">
+                                Add
+                            </button>
+                        `;
+                    }
+
                     newSongsHtml += `
                         <div class="list-group-item d-flex justify-content-between align-items-center">
                             <div>
@@ -420,13 +439,7 @@ if (isset($searchResults['items'])) {
                                 <small class="text-muted">${song.channel}</small>
                             </div>
                             <div>
-                                <button class="btn btn-sm ${buttonClass} add-from-playlist"
-                                        data-video-id="${song.videoId}"
-                                        data-title="${song.title}"
-                                        data-artist="${song.channel}"
-                                        ${buttonDisabled}>
-                                    ${buttonText}
-                                </button>
+                                ${buttonHtml}
                                 <a href="https://www.youtube.com/watch?v=${song.videoId}"
                                    target="_blank"
                                    class="btn btn-sm btn-outline-secondary">
